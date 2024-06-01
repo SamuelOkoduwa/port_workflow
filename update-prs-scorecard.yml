@@ -1,0 +1,28 @@
+name: Update PRs in Port
+
+on:
+  schedule:
+    - cron: '0 * * * *' # Runs every hour
+  workflow_dispatch: # Allows manual triggering
+
+jobs:
+  update-prs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
+      - name: Fetch Open PRs
+        id: fetch_prs
+        run: |
+          open_prs=$(curl -s -H "Authorization: token ${{ secrets.GH_PAT }}" \
+          "https://api.github.com/repos/${{ github.repository }}/pulls?state=open" | jq '. | length')
+          echo "::set-output name=open_prs::$open_prs"
+
+      - name: Update Port Entity
+        run: |
+          curl -X PATCH "https://api.getport.io/v1/entities/${{ secrets.PORT_ENTITY_ID }}" \
+          -H "Authorization: Bearer ${{ secrets.PORT_API_KEY }}" \
+          -H "Content-Type: application/json" \
+          -d '{"properties": {"${{ secrets.PORT_PROPERTY }}": ${{ steps.fetch_prs.outputs.open_prs }}}}'
